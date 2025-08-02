@@ -1,29 +1,48 @@
 import * as vscode from "vscode";
 
-export class SymbolInfo {
-  public readonly symbol: vscode.SymbolInformation & vscode.DocumentSymbol;
+export interface LocatedSymbol extends vscode.DocumentSymbol {
+  location: vscode.Location;
+}
 
-  public static async create(
-    symbol: vscode.SymbolInformation & vscode.DocumentSymbol
-  ): Promise<SymbolInfo> {
+export class SymbolInfo {
+  public readonly symbol: LocatedSymbol;
+
+  public static async create(symbol: LocatedSymbol): Promise<SymbolInfo> {
     const createdSymbolInfo = new SymbolInfo(symbol);
     return createdSymbolInfo;
   }
 
-  public static async getSymbol(
-    location: vscode.Location
-  ): Promise<vscode.SymbolInformation & vscode.DocumentSymbol> {
-    const documentSymbols = (await vscode.commands.executeCommand<
-      (vscode.SymbolInformation & vscode.DocumentSymbol)[]
-    >("vscode.executeDocumentSymbolProvider", location.uri))!;
-    return documentSymbols.find((documentSymbol) =>
-      documentSymbol.range.start.isEqual(location.range.start)
-    ) as vscode.SymbolInformation & vscode.DocumentSymbol;
+  public static async getSymbol(location: vscode.Location): Promise<LocatedSymbol> {
+    const documentSymbols =
+      (await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+        "vscode.executeDocumentSymbolProvider",
+        location.uri
+      )) ?? [];
+
+    const findSymbol = (
+      symbols: vscode.DocumentSymbol[]
+    ): vscode.DocumentSymbol | undefined => {
+      for (const symbol of symbols) {
+        if (symbol.range.start.isEqual(location.range.start)) {
+          return symbol;
+        }
+        const child = findSymbol(symbol.children || []);
+        if (child) {
+          return child;
+        }
+      }
+      return undefined;
+    };
+
+    const found = findSymbol(documentSymbols);
+    if (!found) {
+      throw new Error("Symbol not found");
+    }
+
+    return { ...found, location } as LocatedSymbol;
   }
 
-  private constructor(
-    symbol: vscode.SymbolInformation & vscode.DocumentSymbol
-  ) {
+  private constructor(symbol: LocatedSymbol) {
     this.symbol = symbol;
 
     if (

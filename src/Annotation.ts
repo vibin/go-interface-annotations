@@ -1,8 +1,8 @@
-import * as vscode from "vscode";
+import type { LocatedSymbol } from "./SymbolInfo";
 
 export class Annotation {
   public constructor(
-    public readonly from: vscode.SymbolInformation & vscode.DocumentSymbol,
-    public readonly to: Array<vscode.SymbolInformation & vscode.DocumentSymbol>
+    public readonly from: LocatedSymbol,
+    public readonly to: Array<LocatedSymbol>
   ) {}
 }
